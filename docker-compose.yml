@@ -1,0 +1,34 @@
+# Docker Compose for PPE Detection API
+# =====================================
+# Usage: docker-compose up -d
+
+version: '3.8'
+
+services:
+  ppe-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ppe-detection-api
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./models:/app/models:ro
+      - ./outputs:/app/outputs
+    environment:
+      - PPE_MODEL_PATH=/app/models/ppe_model.pt
+      - PPE_CONFIDENCE=0.5
+      - PORT=5000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G

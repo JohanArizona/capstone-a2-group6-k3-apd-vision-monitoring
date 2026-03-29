@@ -1,0 +1,34 @@
+# PPE Detection Dataset Configuration
+# =====================================
+# Dataset source: klema-ai/ppe-yolo-jrblc
+# URL: https://universe.roboflow.com/klema-ai/ppe-yolo-jrblc
+#
+# Original classes (11): helmet, vest, goggles, person, boots, gloves,
+#                        no-boots, no-gloves, no-goggles, no-helmet, no-vest
+#
+# Classes used (6): helmet, no-helmet, vest, no-vest, boots, no-boots
+
+path: ../datasets/merged
+train: images/train
+val: images/val
+
+# Number of classes
+nc: 6
+
+# Class names
+names:
+  0: hardhat
+  1: no_hardhat
+  2: vest
+  3: no_vest
+  4: boots
+  5: no_boots
+
+# Class mapping for reference
+# ---------------------------
+# hardhat    : Safety helmet detected on head (dari 'helmet')
+# no_hardhat : Head visible without safety helmet (dari 'no-helmet')
+# vest       : Safety/reflective vest detected on body
+# no_vest    : Body visible without safety vest
+# boots      : Safety boots/footwear detected
+# no_boots   : Feet visible without safety boots
