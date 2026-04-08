@@ -34,7 +34,9 @@ OUTPUT_CLASSES = {
     0: "hardhat",
     1: "no_hardhat",
     2: "vest",
-    3: "no_vest"
+    3: "no_vest",
+    4: "boots",
+    5: "no_boots"
 }
 
 # Construction Safety dataset class remapping
@@ -44,6 +46,14 @@ CSS_REMAP = {
     7: 2,  # Safety Vest → vest
     4: 3,  # NO-Safety Vest → no_vest
     # Skip: 1(Mask), 3(NO-Mask), 5(Person), 6(Safety Cone), 8(machinery), 9(vehicle)
+}
+
+# Sepatu Safety dataset class remapping
+SEPATU_REMAP = {
+    0: 0,  # helm → hardhat
+    3: 2,  # rompi → vest
+    5: 4,  # sepatu → boots
+    # Skip: 1(kacamata), 2(masker), 4(sarungtangan)
 }
 
 # Hard Hat Detection XML class mapping
@@ -220,6 +230,64 @@ def process_construction_safety(src_dir: Path, output_dir: Path) -> int:
     return count
 
 
+def process_sepatu_safety(src_dir: Path, output_dir: Path) -> int:
+    """Process sepatu safety YOLO dataset."""
+    if not src_dir.exists():
+        print(f"  ✗ Source not found: {src_dir}")
+        return 0
+    
+    count = 0
+    
+    for split_name in ["train", "valid", "test"]:
+        src_split = src_dir / split_name
+        if not src_split.exists():
+            continue
+        
+        images_dir = src_split / "images"
+        labels_dir = src_split / "labels"
+        
+        if not images_dir.exists() or not labels_dir.exists():
+            continue
+        
+        # Map valid/test to val for our output
+        out_split = "val" if split_name in ["valid", "test"] else "train"
+        
+        label_files = list(labels_dir.glob("*.txt"))
+        for label_path in tqdm(label_files, desc=f"  Processing {split_name}"):
+            # Remap classes
+            annotations = remap_yolo_label(label_path, SEPATU_REMAP)
+            if not annotations:
+                continue  # Skip if no valid annotations after filtering
+            
+            # Find image
+            img_path = None
+            for ext in ['.jpg', '.jpeg', '.png']:
+                candidate = images_dir / f"{label_path.stem}{ext}"
+                if candidate.exists():
+                    img_path = candidate
+                    break
+            
+            if not img_path:
+                continue
+            
+            # Copy image
+            out_img_dir = output_dir / out_split / "images"
+            out_img_dir.mkdir(parents=True, exist_ok=True)
+            out_img_path = out_img_dir / f"ss_{label_path.stem}{img_path.suffix}"
+            shutil.copy2(img_path, out_img_path)
+            
+            # Write label
+            out_lbl_dir = output_dir / out_split / "labels"
+            out_lbl_dir.mkdir(parents=True, exist_ok=True)
+            out_lbl_path = out_lbl_dir / f"ss_{label_path.stem}.txt"
+            with open(out_lbl_path, 'w') as f:
+                f.write('\n'.join(annotations))
+            
+            count += 1
+    
+    return count
+
+
 def create_data_yaml(output_dir: Path):
     """Create data.yaml for YOLO training."""
     yaml_content = {
@@ -283,9 +351,16 @@ def main():
     total += count
     
     # Process construction_safety
-    print("\n[2/2] Processing construction_safety (YOLO remap)...")
+    print("\n[2/3] Processing construction_safety (YOLO remap)...")
     css_dir = sources_dir / "construction_safety"
     count = process_construction_safety(css_dir, output_dir)
+    print(f"  ✓ Processed: {count} images")
+    total += count
+    
+    # Process sepatu_safety
+    print("\n[3/3] Processing sepatu_safety (YOLO remap)...")
+    ss_dir = sources_dir / "sepatu_safety"
+    count = process_sepatu_safety(ss_dir, output_dir)
     print(f"  ✓ Processed: {count} images")
     total += count
     

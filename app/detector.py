@@ -60,12 +60,12 @@ CLASS_COLORS = {
 
 # Alternative class name mappings from different model formats
 CLASS_ALIASES = {
-    "hardhat": ["hardhat", "helmet", "hard_hat", "hard-hat", "safety_helmet"],
-    "no_hardhat": ["no_hardhat", "no_helmet", "no-hardhat", "head", "without_helmet"],
-    "vest": ["vest", "safety_vest", "safety-vest", "hi_vis", "reflective_vest", "jacket"],
-    "no_vest": ["no_vest", "no-vest", "no_safety_vest", "without_vest"],
-    "boots": ["boots", "safety_boots", "safety-boots", "footwear", "safety_shoes", "work_boots"],
-    "no_boots": ["no_boots", "no-boots", "no_safety_boots", "without_boots", "no_footwear"],
+    "hardhat": ["hardhat", "helmet", "hard_hat", "hard-hat", "safety_helmet", "helm"],
+    "no_hardhat": ["no_hardhat", "no_helmet", "no-hardhat", "head", "without_helmet", "tanpa_helm"],
+    "vest": ["vest", "safety_vest", "safety-vest", "hi_vis", "reflective_vest", "jacket", "rompi"],
+    "no_vest": ["no_vest", "no-vest", "no_safety_vest", "without_vest", "tanpa_rompi"],
+    "boots": ["boots", "safety_boots", "safety-boots", "footwear", "safety_shoes", "work_boots", "sepatu"],
+    "no_boots": ["no_boots", "no-boots", "no_safety_boots", "without_boots", "no_footwear", "tanpa_sepatu"],
 }
 
 
