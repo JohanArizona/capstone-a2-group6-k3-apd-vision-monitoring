@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: capstone-db
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${DB_USER:-capstone_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-capstone_password}
+      POSTGRES_DB: ${DB_NAME:-capstone_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - capstone-db-data:/var/lib/postgresql/data
+    networks:
+      - capstone-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-capstone_user} -d ${DB_NAME:-capstone_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: capstone-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql://${DB_USER:-capstone_user}:${DB_PASSWORD:-capstone_password}@db:5432/${DB_NAME:-capstone_db}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - SECRET_KEY=${SECRET_KEY}
+    volumes:
+      - ./backend:/app
+    command: uvicorn main:application --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - capstone-network
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/test"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: capstone-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev
+    networks:
+      - capstone-network
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=http://backend:8000
+
+networks:
+  capstone-network:
+    driver: bridge
+
+volumes:
+  capstone-db-data:

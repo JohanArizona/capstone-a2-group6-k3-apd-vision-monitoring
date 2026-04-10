@@ -6,3 +6,16 @@ SQLAlchemy==2.0.48
 typing_extensions==4.15.0
 fastapi==0.135.1
 uvicorn==0.41.0
+psycopg2-binary==2.9.9
+python-dotenv==1.0.0
+bcrypt==4.1.2
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+pydantic>=2.7.0
+pydantic-settings>=2.1.0
+email-validator>=2.1.0
+PyJWT==2.12.1
+python-jose[cryptography]==3.3.0
+openpyxl==3.1.2
+requests==2.31.0
+aiofiles==23.2.1
