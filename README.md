@@ -31,10 +31,6 @@ TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_CHAT_ID=your_chat_id
 ```
 
-3. **JANGAN PERNAH commit .env ke repository!**
-   - File `.env` sudah di `.gitignore`
-   - Gunakan `.env.example` atau `.env.docker-compose.example` untuk sharing template
-
 ### Cara Menjalankan
 
 1. **Setup environment variables (lihat section Keamanan di atas)**
