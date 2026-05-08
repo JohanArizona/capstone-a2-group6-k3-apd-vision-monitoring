@@ -1,62 +1,154 @@
-# APD Vision Monitoring - Full Test Guide
+# APD Vision Monitoring System
 
-Panduan ini untuk menjalankan sistem end-to-end:
-1. Backend API aktif.
-2. Edge client aktif untuk deteksi model + stream relay MJPEG.
-3. Frontend menampilkan live feed dari edge relay (bukan buka webcam langsung).
+Sistem monitoring kepatuhan Alat Pelindung Diri (APD) berbasis AI menggunakan YOLOv8, FastAPI, React, dan Edge Device streaming.
 
-## Arsitektur Singkat
+---
 
-- Backend: FastAPI + PostgreSQL.
-- Edge client: baca kamera, inferensi YOLO, kirim violation ke backend.
-- Frontend: dashboard monitoring, events, analytics, live feed dari edge relay.
+# Fitur Utama
 
-Live feed browser membaca:
-- `http://localhost:8765/stream.mjpg`
+- Login autentikasi JWT
+- Monitoring dashboard real-time
+- Live camera feed
+- Deteksi APD menggunakan YOLOv8
+- Event processing pelanggaran APD
+- Notifikasi pelanggaran real-time
+- Analytics dan riwayat pelanggaran
+- Export laporan Excel
+- Edge relay MJPEG stream
+- Dukungan webcam lokal dan CCTV RTSP
 
-## Prasyarat
+---
 
-- Windows 10/11.
-- Python 3.10+.
-- Node.js 18+.
-- Git.
-- Kamera/webcam lokal.
+# Arsitektur Sistem
 
-## 1) Jalankan Backend
+## Backend
+- FastAPI
+- PostgreSQL
+- JWT Authentication
+- REST API
 
-Gunakan flow backend yang sudah ada di folder `backend/`.
+## Frontend
+- React + Vite
+- Dashboard monitoring
+- Analytics & reporting
 
-Pilihan paling mudah (Docker):
-1. Masuk ke folder `backend`.
-2. Siapkan `.env` sesuai contoh yang tersedia di backend.
-3. Jalankan:
+## Edge Client
+- YOLOv8 inference
+- Webcam/CCTV reader
+- Violation uploader
+- MJPEG relay stream server
+
+---
+
+# Struktur Sistem
+
+```text
+Frontend Dashboard
+        │
+        ▼
+MJPEG Relay Stream
+(http://localhost:8765/stream.mjpg)
+        ▲
+        │
+Edge Client (YOLO Detection)
+        │
+        ▼
+Backend API (FastAPI)
+        │
+        ▼
+PostgreSQL Database
+```
+
+---
+
+# Prasyarat
+
+Pastikan sudah terinstall:
+
+- Docker Desktop
+- Python 3.10+
+- Git
+- Webcam lokal atau CCTV RTSP
+
+---
+
+# Menjalankan Sistem
+
+## 1. Clone Repository
+
+```powershell
+git clone https://github.com/JohanArizona/capstone-a2-group6-k3-apd-vision-monitoring.git
+```
+
+Masuk ke project:
+
+```powershell
+cd capstone-a2-group6-k3-apd-vision-monitoring
+```
+
+---
+
+# 2. Jalankan Backend + Frontend
+
+Jalankan Docker Compose dari root project:
 
 ```powershell
 docker compose up --build
 ```
 
-Jika backend berjalan di port 8001 (sesuai setup Anda), gunakan URL itu di frontend dan edge.
+Jika berhasil, akan muncul container:
 
-## 2) Siapkan Environment Edge Client
+```text
+✔ Container capstone-db
+✔ Container capstone-backend
+✔ Container capstone-frontend
+```
 
-Masuk folder:
+Service yang berjalan:
+
+| Service | URL |
+|---|---|
+| Frontend Dashboard | http://localhost:5173 |
+| Backend API | http://localhost:8001 |
+| Swagger API Docs | http://localhost:8001/docs |
+
+Untuk menjalankan di background:
+
+```powershell
+docker compose up -d --build
+```
+
+Untuk menghentikan service:
+
+```powershell
+docker compose down
+```
+
+---
+
+# 3. Setup Edge Client
+
+Masuk folder edge client:
 
 ```powershell
 cd ppe-detection-api
 ```
 
-Pastikan `.env` minimal berisi:
+Pastikan file `.env` tersedia dan minimal berisi:
 
 ```env
 BACKEND_URL=http://localhost:8001
+
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=admin123
+
 PPE_MODEL_PATH=app/models/ppe_model.pt
+
 CONFIDENCE_THRESHOLD=0.5
 MIN_VIOLATION_CONFIDENCE=0.5
+
 WEBCAM_INDEX=0
 
-# Edge relay stream untuk frontend
 EDGE_STREAM_HOST=0.0.0.0
 EDGE_STREAM_PORT=8765
 EDGE_STREAM_PATH=/stream.mjpg
@@ -68,81 +160,206 @@ Install dependency (sekali saja):
 py -m pip install -r requirements.txt
 ```
 
-## 3) Jalankan Edge Client (Deteksi + Relay)
+---
 
-Jalankan:
+# 4. Jalankan Edge Client
+
+Masih di folder `ppe-detection-api`:
 
 ```powershell
 py edge_client.py
 ```
 
-Pilih kamera saat diminta.
+Jika berhasil, akan muncul log seperti:
 
-Verifikasi relay hidup:
+```text
+✅ YOLO model loaded
+✅ Login success
+✅ Video source OK
+🎥 Starting detection
+Edge stream server: http://localhost:8765/stream.mjpg
+```
+
+---
+
+# 5. Pilih Kamera
+
+Saat aplikasi berjalan, daftar kamera akan muncul:
+
+```text
+Available cameras:
+
+[0] Lokasi Produksi A
+[1] Lokasi Produksi B
+[2] Lokasi Warehouse
+[3] tes webcam
+```
+
+Pilih index kamera:
+
+```text
+Select camera index: 3
+```
+
+Contoh:
+- `0` → Kamera produksi A
+- `3` → Webcam lokal
+
+---
+
+# 6. Verifikasi Stream Relay
+
+Cek health endpoint:
 
 ```powershell
 Invoke-WebRequest -Uri "http://localhost:8765/health" -UseBasicParsing
 ```
 
-Jika sukses, endpoint stream siap:
-- `http://localhost:8765/stream.mjpg`
+Jika berhasil, MJPEG stream aktif di:
 
-## 4) Jalankan Frontend
-
-Masuk folder:
-
-```powershell
-cd frontend
+```text
+http://localhost:8765/stream.mjpg
 ```
 
-Pastikan file `.env` berisi:
+---
+
+# 7. Akses Dashboard
+
+Buka browser:
+
+```text
+http://localhost:5173
+```
+
+Login menggunakan akun yang tersedia.
+
+---
+
+# 8. Uji Full Flow Sistem
+
+## Live Monitoring
+
+- Buka halaman Live Monitoring
+- Pastikan live feed tampil
+- Feed berasal dari edge relay stream
+
+## AI Detection
+
+Lakukan simulasi:
+- Tidak memakai helm
+- Tidak memakai vest
+
+Contoh log detection:
+
+```text
+⚠️ Missing APD: ['helmet']
+📤 Violation uploaded
+```
+
+## Event Dashboard
+
+Pastikan:
+- Event pelanggaran muncul
+- Analytics bertambah
+- Riwayat tersimpan
+
+---
+
+# Troubleshooting
+
+## Live Feed Tidak Tampil
+
+Pastikan edge client berjalan:
+
+```powershell
+py edge_client.py
+```
+
+Cek health endpoint:
+
+```text
+http://localhost:8765/health
+```
+
+---
+
+## Frontend Tidak Bisa Akses Stream
+
+Pastikan frontend menggunakan:
 
 ```env
-VITE_API_BASE_URL=http://localhost:8001
 VITE_EDGE_MJPEG_URL=http://localhost:8765/stream.mjpg
 ```
 
-Install dan jalankan:
+Restart frontend/container setelah mengubah `.env`.
 
-```powershell
-npm install
-npm run dev
+---
+
+## Edge Client Gagal Login
+
+Periksa:
+
+```env
+BACKEND_URL=http://localhost:8001
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin123
 ```
 
-Buka:
-- `http://localhost:5173`
+Pastikan backend container berjalan.
 
-## 5) Uji Full Flow
+---
 
-1. Login dashboard.
-2. Pilih kamera `tes webcam` (atau kamera local).
-3. Cek halaman Live:
-	- Feed harus tampil dari edge relay.
-4. Cek Events:
-	- Violation yang dikirim edge client muncul.
-5. Cek Analytics:
-	- Data statistik muncul mengikuti kamera terpilih.
+## Webcam Tidak Terdeteksi
 
-## Troubleshooting Cepat
+- Tutup aplikasi lain yang memakai webcam
+- Ubah:
 
-1. Live feed kosong, edge window berjalan:
-	- Restart `edge_client.py` supaya pakai versi relay terbaru.
-	- Cek `http://localhost:8765/health`.
+```env
+WEBCAM_INDEX=0
+```
 
-2. Browser tetap tidak tampil, tapi `/health` OK:
-	- Cek `VITE_EDGE_MJPEG_URL` di `frontend/.env`.
-	- Restart `npm run dev` setelah ubah `.env`.
+ke index lain.
 
-3. Edge gagal kirim violation:
-	- Pastikan `BACKEND_URL` benar.
-	- Cek login edge client berhasil.
+---
 
-4. Kamera tidak kebaca:
-	- Tutup aplikasi lain yang memakai webcam.
-	- Ubah `WEBCAM_INDEX`.
+# Catatan Penting
 
-## Catatan Penting
+- Frontend tidak membuka webcam langsung.
+- Webcam hanya digunakan oleh edge client.
+- Frontend menerima stream dari MJPEG relay edge client.
+- Sistem dapat menggunakan webcam lokal maupun CCTV RTSP.
+- Pada deployment nyata, webcam dapat diganti dengan CCTV IP camera.
 
-- Frontend tidak lagi membuka webcam lokal langsung untuk mode local camera.
-- Webcam dipegang edge client saja untuk mencegah konflik device.
-- Frontend hanya konsumsi stream relay dari edge client.
+---
+
+# Teknologi Yang Digunakan
+
+| Teknologi | Fungsi |
+|---|---|
+| FastAPI | Backend API |
+| PostgreSQL | Database |
+| React + Vite | Frontend Dashboard |
+| YOLOv8 | AI Detection |
+| OpenCV | Video Processing |
+| Docker Compose | Container orchestration |
+| JWT | Authentication |
+
+---
+
+# Pengujian Sistem
+
+Pengujian dilakukan secara fungsional dengan memastikan:
+
+- Login berjalan
+- Live feed tampil
+- YOLO inference berjalan
+- Pelanggaran terdeteksi
+- Event tersimpan ke database
+- Dashboard menampilkan data real-time
+- Export laporan berhasil
+
+---
+
+# Lisensi
+
+Project ini dikembangkan untuk kebutuhan Capstone Project APD Vision Monitoring System.
