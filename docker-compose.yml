@@ -1,0 +1,159 @@
+# =====================================================================
+# Unified Docker Compose - SafetyWatch Platform
+# =====================================================================
+# Runs all 4 services: PostgreSQL, Backend (FastAPI), Frontend (Vite),
+# and the Edge Client (PPE YOLO inference).
+#
+# Usage:
+#   docker compose up -d          # Start all services
+#   docker compose up -d --build  # Rebuild images and start
+#   docker compose logs -f        # View logs
+#   docker compose down           # Stop all services
+# =====================================================================
+
+services:
+
+  # =================================================================
+  # 1. DATABASE (PostgreSQL)
+  # =================================================================
+  db:
+    image: postgres:16-alpine
+    container_name: capstone-db
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${DB_USER:-capstone_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-capstone_password}
+      POSTGRES_DB: ${DB_NAME:-capstone_db}
+    ports:
+      - "5433:5432"
+    volumes:
+      - capstone-db-data:/var/lib/postgresql/data
+    networks:
+      - capstone-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-capstone_user} -d ${DB_NAME:-capstone_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =================================================================
+  # 2. BACKEND (FastAPI)
+  # =================================================================
+  backend:
+    build:
+      context: ./backend/backend
+      dockerfile: Dockerfile
+    container_name: capstone-backend
+    ports:
+      - "8001:8000"
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql://${DB_USER:-capstone_user}:${DB_PASSWORD:-capstone_password}@db:5432/${DB_NAME:-capstone_db}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - SECRET_KEY=${SECRET_KEY}
+    volumes:
+      - ./backend/backend:/app
+      - backend-uploads:/app/uploads
+    command: uvicorn main:application --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - capstone-network
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # =================================================================
+  # 3. FRONTEND (Vite + React)
+  # =================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: capstone-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0 --port 5173
+    networks:
+      - capstone-network
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8001
+
+  # =================================================================
+  # 4. EDGE CLIENT (PPE Detection / YOLO Inference)
+  # =================================================================
+  # This service loads the YOLOv8 model, captures frames from the
+  # webcam (or a video source), runs inference, and pushes detected
+  # violations to the backend API automatically.
+  #
+  # NOTE: To use the host webcam inside Docker on Linux, you need:
+  #   --device /dev/video0:/dev/video0
+  # On Windows/macOS Docker Desktop this is NOT natively supported.
+  # For production, use an RTSP stream URL instead of webcam index.
+  #
+  # FOR LOCAL WEBCAM TESTING (Windows):
+  #   1. Run db + backend + frontend with: docker compose up -d
+  #   2. Run edge client locally:  python edge_client.py
+  #      (from ppe-detection-api/ folder with venv activated)
+  #      Set BACKEND_URL=http://localhost:8001 in ppe-detection-api/.env
+  #
+  # To include this service in Docker (Linux/RTSP only):
+  #   docker compose --profile edge up -d
+  # =================================================================
+  edge-client:
+    profiles:
+      - edge
+    build:
+      context: ./ppe-detection-api
+      dockerfile: Dockerfile.edge
+    container_name: capstone-edge-client
+    env_file:
+      - .env
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - ADMIN_USERNAME=${EDGE_USERNAME:-admin}
+      - ADMIN_PASSWORD=${EDGE_PASSWORD:-admin123}
+      - PPE_MODEL_PATH=app/models/ppe_model.pt
+      - CONFIDENCE_THRESHOLD=0.5
+      - MIN_VIOLATION_CONFIDENCE=0.5
+      - WEBCAM_INDEX=0
+      - CAMERA_INDEX=0
+      - STARTUP_DELAY=20
+    volumes:
+      - ./ppe-detection-api/app/models:/app/app/models:ro
+    networks:
+      - capstone-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+    # Uncomment the following on Linux to pass the host webcam:
+    # devices:
+    #   - /dev/video0:/dev/video0
+    restart: on-failure
+
+networks:
+  capstone-network:
+    driver: bridge
+
+volumes:
+  capstone-db-data:
+  backend-uploads:
