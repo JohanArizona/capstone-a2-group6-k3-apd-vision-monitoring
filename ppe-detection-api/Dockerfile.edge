@@ -1,0 +1,36 @@
+# Edge Client - Docker Build (Headless)
+# ========================================
+# Runs inference loop in Docker without GUI
+
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install system dependencies for OpenCV headless
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgl1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code and model
+COPY app/ app/
+COPY edge_client_headless.py .
+COPY .env .env
+
+# Environment defaults (overridden by docker-compose)
+ENV BACKEND_URL=http://backend:8000
+ENV PPE_MODEL_PATH=app/models/ppe_model.pt
+ENV CONFIDENCE_THRESHOLD=0.5
+ENV MIN_VIOLATION_CONFIDENCE=0.5
+ENV WEBCAM_INDEX=0
+ENV CAMERA_INDEX=0
+ENV STARTUP_DELAY=15
+
+CMD ["python", "edge_client_headless.py"]

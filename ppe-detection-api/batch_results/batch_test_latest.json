@@ -1,0 +1,321 @@
+{
+  "summary": {
+    "generated_at": "2026-03-29T16:18:15.936189Z",
+    "endpoint": "http://127.0.0.1:5001/detect",
+    "images_tested": 30,
+    "images_success": 30,
+    "images_failed": 0,
+    "total_detections": 115,
+    "avg_detections_per_image": 3.833,
+    "total_violations": 35,
+    "class_counts": {
+      "hardhat": 69,
+      "no_hardhat": 12,
+      "no_vest": 23,
+      "vest": 11
+    },
+    "top_5_images_by_detections": [
+      {
+        "image": "css_-3766-_png_jpg.rf.81ead992d4b8047ec7beb28b7532cf0a.jpg",
+        "detections": 16,
+        "violations": 2,
+        "classes_detected": [
+          "hardhat",
+          "no_hardhat"
+        ]
+      },
+      {
+        "image": "css_006463_jpg.rf.02f19082420ecc5537b9d59abbe6050c.jpg",
+        "detections": 16,
+        "violations": 7,
+        "classes_detected": [
+          "hardhat",
+          "no_vest"
+        ]
+      },
+      {
+        "image": "css_006672_jpg.rf.87d5978c486feb53177408cf00a0d87f.jpg",
+        "detections": 11,
+        "violations": 0,
+        "classes_detected": [
+          "hardhat",
+          "vest"
+        ]
+      },
+      {
+        "image": "css_-1989-_png_jpg.rf.8cb3d6087bb86d08e693b4250fbf96e3.jpg",
+        "detections": 9,
+        "violations": 0,
+        "classes_detected": [
+          "hardhat"
+        ]
+      },
+      {
+        "image": "css_004063_jpg.rf.1b7cdc4035bcb24ef69b8798b444053e.jpg",
+        "detections": 8,
+        "violations": 4,
+        "classes_detected": [
+          "hardhat",
+          "no_hardhat",
+          "no_vest"
+        ]
+      }
+    ],
+    "failed_samples": []
+  },
+  "per_image": [
+    {
+      "image": "css_-1079-_png_jpg.rf.19092a3937930012f9fd9c1ce57f5a7b.jpg",
+      "detections": 2,
+      "violations": 0,
+      "classes_detected": [
+        "hardhat"
+      ]
+    },
+    {
+      "image": "css_-1429-_png_jpg.rf.78a7894e86c79d018d80fa86f4d000f8.jpg",
+      "detections": 2,
+      "violations": 0,
+      "classes_detected": [
+        "hardhat"
+      ]
+    },
+    {
+      "image": "css_-1969-_png_jpg.rf.41dd58ed3ae83df95fb2417c679d581f.jpg",
+      "detections": 1,
+      "violations": 0,
+      "classes_detected": [
+        "hardhat"
+      ]
+    },
+    {
+      "image": "css_-1989-_png_jpg.rf.8cb3d6087bb86d08e693b4250fbf96e3.jpg",
+      "detections": 9,
+      "violations": 0,
+      "classes_detected": [
+        "hardhat"
+      ]
+    },
+    {
+      "image": "css_-211-_png_jpg.rf.eac228e3993f9027795b6400262811e7.jpg",
+      "detections": 2,
+      "violations": 0,
+      "classes_detected": [
+        "hardhat"
+      ]
+    },
+    {
+      "image": "css_-3154-_png_jpg.rf.f118da2b1c20afb78ff93dc7d558f42c.jpg",
+      "detections": 1,
+      "violations": 0,
+      "classes_detected": [
+        "hardhat"
+      ]
+    },
+    {
+      "image": "css_-3766-_png_jpg.rf.81ead992d4b8047ec7beb28b7532cf0a.jpg",
+      "detections": 16,
+      "violations": 2,
+      "classes_detected": [
+        "hardhat",
+        "no_hardhat"
+      ]
+    },
+    {
+      "image": "css_-4405-_png_jpg.rf.82b5c10b2acd1cfaa24259ada8e599fe.jpg",
+      "detections": 2,
+      "violations": 0,
+      "classes_detected": [
+        "hardhat"
+      ]
+    },
+    {
+      "image": "css_000005_jpg.rf.96e9379ccae638140c4a90fc4b700a2b.jpg",
+      "detections": 2,
+      "violations": 0,
+      "classes_detected": [
+        "hardhat"
+      ]
+    },
+    {
+      "image": "css_002551_jpg.rf.ce4b9f934161faa72c80dc6898d37b2d.jpg",
+      "detections": 4,
+      "violations": 1,
+      "classes_detected": [
+        "hardhat",
+        "no_vest"
+      ]
+    },
+    {
+      "image": "css_003357_jpg.rf.9867f91e88089bb68dc95947d5116d14.jpg",
+      "detections": 1,
+      "violations": 0,
+      "classes_detected": [
+        "hardhat"
+      ]
+    },
+    {
+      "image": "css_004063_jpg.rf.1b7cdc4035bcb24ef69b8798b444053e.jpg",
+      "detections": 8,
+      "violations": 4,
+      "classes_detected": [
+        "hardhat",
+        "no_hardhat",
+        "no_vest"
+      ]
+    },
+    {
+      "image": "css_004424_jpg.rf.0470713b945b08839105cde711db62d9.jpg",
+      "detections": 1,
+      "violations": 0,
+      "classes_detected": [
+        "hardhat"
+      ]
+    },
+    {
+      "image": "css_004763_jpg.rf.46484e6ca73caeaa9de45822cf1085a9.jpg",
+      "detections": 4,
+      "violations": 1,
+      "classes_detected": [
+        "hardhat",
+        "no_vest"
+      ]
+    },
+    {
+      "image": "css_005559_jpg.rf.5a5ab91289de227b286efca4418ff73d.jpg",
+      "detections": 2,
+      "violations": 1,
+      "classes_detected": [
+        "hardhat",
+        "no_vest"
+      ]
+    },
+    {
+      "image": "css_00596_jpg.rf.d030c5d98b937d080d75db1c1b269a84.jpg",
+      "detections": 6,
+      "violations": 5,
+      "classes_detected": [
+        "hardhat",
+        "no_hardhat",
+        "no_vest"
+      ]
+    },
+    {
+      "image": "css_006463_jpg.rf.02f19082420ecc5537b9d59abbe6050c.jpg",
+      "detections": 16,
+      "violations": 7,
+      "classes_detected": [
+        "hardhat",
+        "no_vest"
+      ]
+    },
+    {
+      "image": "css_006672_jpg.rf.87d5978c486feb53177408cf00a0d87f.jpg",
+      "detections": 11,
+      "violations": 0,
+      "classes_detected": [
+        "hardhat",
+        "vest"
+      ]
+    },
+    {
+      "image": "css_02646_jpg.rf.5c93ba95bdc03808bcf872c7218ac5ef.jpg",
+      "detections": 2,
+      "violations": 1,
+      "classes_detected": [
+        "hardhat",
+        "no_vest"
+      ]
+    },
+    {
+      "image": "css_0_jpg.rf.2ff49f74309118f169e07aa12564df87.jpg",
+      "detections": 4,
+      "violations": 0,
+      "classes_detected": [
+        "hardhat",
+        "vest"
+      ]
+    },
+    {
+      "image": "css_1125_jpg.rf.2958d0a57630bdde8c3b5c6c560152af.jpg",
+      "detections": 5,
+      "violations": 5,
+      "classes_detected": [
+        "no_hardhat",
+        "no_vest"
+      ]
+    },
+    {
+      "image": "css_2008_008320_jpg.rf.bd34011d46f82f9410d95f00e560b8ea.jpg",
+      "detections": 2,
+      "violations": 1,
+      "classes_detected": [
+        "no_hardhat",
+        "vest"
+      ]
+    },
+    {
+      "image": "css_2008_008519_jpg.rf.1798c8eed7de04399a0e7e297b4b4c9e.jpg",
+      "detections": 4,
+      "violations": 0,
+      "classes_detected": [
+        "hardhat",
+        "vest"
+      ]
+    },
+    {
+      "image": "css_2009_000059_jpg.rf.50e8398a37eb33f33fd9f662feeea083.jpg",
+      "detections": 2,
+      "violations": 2,
+      "classes_detected": [
+        "no_hardhat",
+        "no_vest"
+      ]
+    },
+    {
+      "image": "css_2009_000277_jpg.rf.baccd85360fb8011e7c303066ceac286.jpg",
+      "detections": 1,
+      "violations": 1,
+      "classes_detected": [
+        "no_hardhat"
+      ]
+    },
+    {
+      "image": "css_2009_000461_jpg.rf.43a28e2d6f1f9d399c92e18ccc9f0bf1.jpg",
+      "detections": 2,
+      "violations": 1,
+      "classes_detected": [
+        "hardhat",
+        "no_vest"
+      ]
+    },
+    {
+      "image": "css_2009_002778_jpg.rf.7c8977ed190a2ce4211ef58f66864066.jpg",
+      "detections": 0,
+      "violations": 0,
+      "classes_detected": []
+    },
+    {
+      "image": "css_2009_003991_jpg.rf.c4fadb57b5579062cd4db5463ec3ba74.jpg",
+      "detections": 3,
+      "violations": 3,
+      "classes_detected": [
+        "no_hardhat",
+        "no_vest"
+      ]
+    },
+    {
+      "image": "css_2009_004100_jpg.rf.6eb0dc058fc0d307a6b0f7f579945e24.jpg",
+      "detections": 0,
+      "violations": 0,
+      "classes_detected": []
+    },
+    {
+      "image": "css_4_jpg.rf.a937c41e1fc4d92e9e1f8c2d9efeb87d.jpg",
+      "detections": 0,
+      "violations": 0,
+      "classes_detected": []
+    }
+  ],
+  "failed": []
+}
