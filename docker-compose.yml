@@ -42,7 +42,7 @@ services:
   # =================================================================
   backend:
     build:
-      context: ./backend/backend
+      context: ./backend
       dockerfile: Dockerfile
     container_name: capstone-backend
     ports:
