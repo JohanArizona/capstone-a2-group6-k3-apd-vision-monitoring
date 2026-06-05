@@ -232,6 +232,7 @@ function App() {
 
   const [streamStatus, setStreamStatus] = useState('idle')
   const [selectedCameraDetail, setSelectedCameraDetail] = useState(null)
+  const [updatingViolationId, setUpdatingViolationId] = useState('')
 
   const cameraList = useMemo(
     () => (cameraLoadFailed || !cameras.length ? FALLBACK_CAMERAS : cameras),
@@ -471,6 +472,43 @@ function App() {
 
     await Promise.all([violationsPromise, seriesPromise])
   }, [authHeaders, authStatus, eventStatusFilter, selectedCameraId])
+
+  const updateViolationStatus = useCallback(
+    async (violationId, nextStatus) => {
+      if (authStatus !== 'ready' || !violationId) return
+
+      setUpdatingViolationId(violationId)
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/violations/${violationId}/status`, {
+          method: 'PUT',
+          headers: {
+            ...authHeaders,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            status: nextStatus,
+            notes: nextStatus === 'Verified' ? 'Verified from dashboard' : 'Marked as false positive from dashboard',
+          }),
+        })
+
+        if (!response.ok) {
+          const message = await response.text()
+          throw new Error(message || 'Failed to update violation status')
+        }
+
+        await Promise.all([loadOverview(), loadDetailedData()])
+      } catch (error) {
+        setReportStatus({
+          type: 'error',
+          message: error.message || 'Failed to update violation status',
+        })
+      } finally {
+        setUpdatingViolationId('')
+      }
+    },
+    [authHeaders, authStatus, loadDetailedData, loadOverview],
+  )
 
   useEffect(() => {
     loadOverview()
@@ -1000,6 +1038,7 @@ function App() {
                 ) : filteredViolations.length ? (
                   filteredViolations.map((violation) => {
                     const cameraName = cameraMap.get(String(violation.camera_id))?.name || 'Unknown'
+                    const isUpdating = updatingViolationId === String(violation.id)
                     return (
                       <div key={violation.id} className="table-row violations">
                         <div>
@@ -1009,7 +1048,29 @@ function App() {
                         <span>{cameraName}</span>
                         <span>{formatMissingApd(violation.missing_apd)}</span>
                         <span>{formatPercent(violation.confidence_score * 100)}</span>
-                        <span className={getViolationTone(violation.status)}>{violation.status}</span>
+                        <div className="violation-status-cell">
+                          <span className={getViolationTone(violation.status)}>{violation.status}</span>
+                          {violation.status === 'Unverified' ? (
+                            <div className="violation-actions">
+                              <button
+                                type="button"
+                                className="btn ghost tiny"
+                                disabled={isUpdating}
+                                onClick={() => updateViolationStatus(violation.id, 'Verified')}
+                              >
+                                {isUpdating ? 'Saving...' : 'Verify'}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn ghost tiny muted-action"
+                                disabled={isUpdating}
+                                onClick={() => updateViolationStatus(violation.id, 'False_Positive')}
+                              >
+                                False Positive
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                     )
                   })
