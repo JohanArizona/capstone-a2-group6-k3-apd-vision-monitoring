@@ -27,6 +27,9 @@ const NAV_ITEMS = [
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
 
+const ADMIN_NAV_IDS = new Set(['dashboard', 'live', 'events', 'analytics_addons', 'cameras', 'settings'])
+const USER_NAV_IDS = new Set(['dashboard', 'live'])
+
 const PAGE_META = {
   dashboard: {
     eyebrow: 'Live Safety Command',
@@ -98,6 +101,13 @@ const FALLBACK_VIOLATIONS = [
     snapshot_path: '',
   },
 ]
+
+const createCameraDraft = (camera = {}) => ({
+  name: camera.name || '',
+  location: camera.location || '',
+  rtsp_url: camera.rtsp_url || 'local://webcam',
+  status: camera.status || 'Active',
+})
 
 const formatTimestamp = (value) => {
   if (!value) return 'No data'
@@ -209,6 +219,8 @@ function App() {
   const [detectionLoading, setDetectionLoading] = useState(false)
 
   const [showCameraForm, setShowCameraForm] = useState(false)
+  const [cameraFormMode, setCameraFormMode] = useState('create')
+  const [editingCameraId, setEditingCameraId] = useState('')
   const [cameraForm, setCameraForm] = useState({
     name: '',
     location: '',
@@ -217,6 +229,7 @@ function App() {
   })
   const [cameraFormError, setCameraFormError] = useState('')
   const [isSavingCamera, setIsSavingCamera] = useState(false)
+  const [isDeletingCameraId, setIsDeletingCameraId] = useState('')
 
   const [reportOpen, setReportOpen] = useState(false)
   const [reportFilters, setReportFilters] = useState({
@@ -373,6 +386,19 @@ function App() {
     () => ({ Authorization: `Bearer ${token}` }),
     [token],
   )
+
+  const canManageCameras = user?.role === 'Admin_IT'
+  const visibleNavItems = useMemo(() => {
+    const allowedIds = canManageCameras ? ADMIN_NAV_IDS : USER_NAV_IDS
+    return NAV_ITEMS.filter((item) => allowedIds.has(item.id))
+  }, [canManageCameras])
+
+  useEffect(() => {
+    if (!visibleNavItems.length) return
+    if (!visibleNavItems.some((item) => item.id === activeNav)) {
+      setActiveNav(visibleNavItems[0].id)
+    }
+  }, [activeNav, visibleNavItems])
 
   useEffect(() => {
     if (!selectedCameraId && cameraList.length) {
@@ -654,47 +680,115 @@ function App() {
     localStorage.removeItem('apd_token')
   }
 
-  const handleCreateCamera = async (event) => {
+  const openCameraForm = (camera = null) => {
+    setCameraFormError('')
+    if (camera) {
+      setCameraFormMode('edit')
+      setEditingCameraId(String(camera.id))
+      setCameraForm(createCameraDraft(camera))
+      setShowCameraForm(true)
+      return
+    }
+
+    setCameraFormMode('create')
+    setEditingCameraId('')
+    setCameraForm(createCameraDraft())
+    setShowCameraForm(true)
+  }
+
+  const closeCameraForm = () => {
+    setShowCameraForm(false)
+    setCameraFormMode('create')
+    setEditingCameraId('')
+    setCameraForm(createCameraDraft())
+    setCameraFormError('')
+  }
+
+  const handleSaveCamera = async (event) => {
     event.preventDefault()
     setCameraFormError('')
 
-    if (user?.role !== 'Admin_IT') {
-      setCameraFormError('Only Admin_IT can add cameras.')
+    if (!canManageCameras) {
+      setCameraFormError('Only Admin_IT can manage cameras.')
       return
     }
 
     setIsSavingCamera(true)
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/cameras`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+      const isEditMode = cameraFormMode === 'edit' && editingCameraId
+      const response = await fetch(
+        isEditMode ? `${API_BASE_URL}/api/cameras/${editingCameraId}` : `${API_BASE_URL}/api/cameras`,
+        {
+          method: isEditMode ? 'PUT' : 'POST',
+          headers: {
+            ...authHeaders,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(cameraForm),
         },
-        body: JSON.stringify(cameraForm),
-      })
+      )
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null)
-        throw new Error(errorData?.detail || 'Failed to create camera')
+        throw new Error(errorData?.detail || 'Failed to save camera')
       }
 
-      const newCamera = await response.json()
-      setCameras((prev) => [newCamera, ...prev])
+      const savedCamera = await response.json()
+      const nextCameraList = isEditMode
+        ? cameraList.map((camera) =>
+            String(camera.id) === String(editingCameraId) ? { ...camera, ...savedCamera } : camera,
+          )
+        : [savedCamera, ...cameraList]
+
+      setCameras(nextCameraList)
       setCameraLoadFailed(false)
-      setSelectedCameraId(String(newCamera.id))
-      setShowCameraForm(false)
-      setCameraForm({
-        name: '',
-        location: '',
-        rtsp_url: 'local://webcam',
-        status: 'Active',
-      })
+      setSelectedCameraId(String(savedCamera.id))
+      closeCameraForm()
+      await loadOverview()
     } catch (error) {
-      setCameraFormError(error.message || 'Failed to create camera')
+      setCameraFormError(error.message || 'Failed to save camera')
     } finally {
       setIsSavingCamera(false)
+    }
+  }
+
+  const handleDeleteCamera = async (cameraId) => {
+    if (!canManageCameras) return
+
+    const cameraName = cameraList.find((camera) => String(camera.id) === String(cameraId))?.name || 'camera'
+    const confirmed = window.confirm(`Hapus ${cameraName}?`)
+    if (!confirmed) return
+
+    setIsDeletingCameraId(String(cameraId))
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/cameras/${cameraId}`, {
+        method: 'DELETE',
+        headers: {
+          ...authHeaders,
+        },
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '')
+        throw new Error(errorText || 'Failed to delete camera')
+      }
+
+      const nextCameraList = cameraList.filter((camera) => String(camera.id) !== String(cameraId))
+      setCameras(nextCameraList)
+      setCameraLoadFailed(false)
+      if (String(selectedCameraId) === String(cameraId)) {
+        setSelectedCameraId(nextCameraList[0] ? String(nextCameraList[0].id) : '')
+      }
+      if (String(editingCameraId) === String(cameraId)) {
+        closeCameraForm()
+      }
+      await loadOverview()
+    } catch (error) {
+      setCameraFormError(error.message || 'Failed to delete camera')
+    } finally {
+      setIsDeletingCameraId('')
     }
   }
 
@@ -748,7 +842,6 @@ function App() {
     }
   }
 
-  const canManageCameras = user?.role === 'Admin_IT'
   const pageMeta = PAGE_META[activeNav] || PAGE_META.dashboard
   const resolvedCameraSource = resolveCameraSource(selectedCamera)
   const liveSource = streamStatus === 'relay' ? EDGE_MJPEG_URL : resolvedCameraSource
@@ -793,6 +886,16 @@ function App() {
               <p className="muted">
                 Masuk untuk memantau live feed, event pelanggaran, dan analytics.
               </p>
+              <div className="auth-hint-grid">
+                <div className="auth-hint-card">
+                  <p className="muted small">Admin</p>
+                  <p className="strong">admin / admin123</p>
+                </div>
+                <div className="auth-hint-card">
+                  <p className="muted small">User biasa</p>
+                  <p className="strong">pengawas / pengawas123</p>
+                </div>
+              </div>
             </div>
           </div>
           {isChecking ? (
@@ -806,7 +909,7 @@ function App() {
                 Username
                 <input
                   type="text"
-                  placeholder="admin_it"
+                  placeholder="admin"
                   value={loginForm.username}
                   onChange={(event) =>
                     setLoginForm((prev) => ({ ...prev, username: event.target.value }))
@@ -855,7 +958,7 @@ function App() {
         </div>
 
         <nav className="nav">
-          {NAV_ITEMS.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon
             return (
               <button
@@ -911,9 +1014,11 @@ function App() {
               <RefreshCw size={14} />
               Refresh
             </button>
-            <button className="btn primary" type="button" onClick={() => setReportOpen(true)}>
-              Export Report
-            </button>
+            {canManageCameras ? (
+              <button className="btn primary" type="button" onClick={() => setReportOpen(true)}>
+                Export Report
+              </button>
+            ) : null}
           </div>
         </header>
 
@@ -1067,7 +1172,7 @@ function App() {
           </section>
         ) : null}
 
-        {activeNav === 'events' ? (
+        {activeNav === 'events' && canManageCameras ? (
           <section className="page-grid">
             <div className="panel" data-animate>
               <div className="panel-header">
@@ -1152,7 +1257,7 @@ function App() {
           </section>
         ) : null}
 
-        {activeNav === 'analytics_addons' ? (
+        {activeNav === 'analytics_addons' && canManageCameras ? (
           <section className="analytics-addons-layout" data-animate>
             <div className="filter-breadcrumb-bar">
               <button className="breadcrumb-btn active" type="button">
@@ -1476,7 +1581,7 @@ function App() {
           </section>
         ) : null}
 
-        {activeNav === 'cameras' ? (
+        {activeNav === 'cameras' && canManageCameras ? (
           <section className="page-grid">
             <div className="panel" data-animate>
               <div className="panel-header">
@@ -1491,11 +1596,7 @@ function App() {
                   <button
                     className="btn primary"
                     type="button"
-                    onClick={() => {
-                      setCameraFormError('')
-                      setShowCameraForm(true)
-                    }}
-                    disabled={!canManageCameras}
+                    onClick={() => openCameraForm()}
                   >
                     Add Camera
                   </button>
@@ -1503,15 +1604,16 @@ function App() {
               </div>
 
               <div className="table">
-                <div className="table-row head">
+                <div className="table-row head cameras">
                   <span>Camera</span>
                   <span>Location</span>
                   <span>Status</span>
                   <span>Source</span>
+                  <span>Actions</span>
                 </div>
                 {cameraList.length ? (
                   cameraList.map((camera) => (
-                    <div key={camera.id} className="table-row">
+                    <div key={camera.id} className="table-row cameras">
                       <div>
                         <p className="strong">{camera.name}</p>
                         <p className="muted small">ID: {String(camera.id).slice(0, 8)}</p>
@@ -1519,6 +1621,19 @@ function App() {
                       <span>{camera.location}</span>
                       <span className={getStatusTone(camera.status)}>{camera.status}</span>
                       <span className="source-pill">{camera.rtsp_url || '-'}</span>
+                      <div className="camera-actions">
+                        <button className="btn ghost tiny" type="button" onClick={() => openCameraForm(camera)}>
+                          Edit
+                        </button>
+                        <button
+                          className="btn ghost tiny muted-action"
+                          type="button"
+                          onClick={() => handleDeleteCamera(camera.id)}
+                          disabled={isDeletingCameraId === String(camera.id)}
+                        >
+                          {isDeletingCameraId === String(camera.id) ? 'Deleting...' : 'Delete'}
+                        </button>
+                      </div>
                     </div>
                   ))
                 ) : (
@@ -1590,15 +1705,17 @@ function App() {
             <div className="modal-card">
               <div className="modal-header">
                 <div>
-                  <p className="eyebrow">Add Camera</p>
-                  <h2 className="modal-title">Register New Camera</h2>
+                  <p className="eyebrow">{cameraFormMode === 'edit' ? 'Edit Camera' : 'Add Camera'}</p>
+                  <h2 className="modal-title">
+                    {cameraFormMode === 'edit' ? 'Update Camera Details' : 'Register New Camera'}
+                  </h2>
                 </div>
-                <button className="btn ghost" type="button" onClick={() => setShowCameraForm(false)}>
+                <button className="btn ghost" type="button" onClick={closeCameraForm}>
                   Close
                 </button>
               </div>
 
-              <form className="modal-body" onSubmit={handleCreateCamera}>
+              <form className="modal-body" onSubmit={handleSaveCamera}>
                 <div className="form-grid">
                   <label className="field">
                     Camera Name
@@ -1648,11 +1765,11 @@ function App() {
                 {cameraFormError ? <div className="notice error">{cameraFormError}</div> : null}
 
                 <div className="modal-footer">
-                  <button className="btn ghost" type="button" onClick={() => setShowCameraForm(false)}>
+                  <button className="btn ghost" type="button" onClick={closeCameraForm}>
                     Cancel
                   </button>
                   <button className="btn primary" type="submit" disabled={isSavingCamera}>
-                    {isSavingCamera ? 'Saving...' : 'Save Camera'}
+                    {isSavingCamera ? 'Saving...' : cameraFormMode === 'edit' ? 'Update Camera' : 'Save Camera'}
                   </button>
                 </div>
               </form>
