@@ -231,6 +231,7 @@ function App() {
   const [inspectionModal, setInspectionModal] = useState(null)
 
   const [streamStatus, setStreamStatus] = useState('idle')
+  const [selectedCameraDetail, setSelectedCameraDetail] = useState(null)
 
   const cameraList = useMemo(
     () => (cameraLoadFailed || !cameras.length ? FALLBACK_CAMERAS : cameras),
@@ -240,8 +241,15 @@ function App() {
   const selectedCamera = useMemo(() => {
     if (!cameraList.length) return null
     const found = cameraList.find((camera) => String(camera.id) === selectedCameraId)
-    return found || cameraList[0]
-  }, [cameraList, selectedCameraId])
+    const baseCamera = found || cameraList[0]
+    if (!baseCamera) return null
+
+    if (selectedCameraDetail && String(selectedCameraDetail.id) === String(baseCamera.id)) {
+      return { ...baseCamera, ...selectedCameraDetail }
+    }
+
+    return baseCamera
+  }, [cameraList, selectedCameraId, selectedCameraDetail])
 
   const cameraMap = useMemo(() => {
     const map = new Map()
@@ -300,6 +308,35 @@ function App() {
       setSelectedCameraId(String(cameraList[0].id))
     }
   }, [selectedCameraId, cameraList])
+
+  useEffect(() => {
+    if (authStatus !== 'ready' || !selectedCameraId) {
+      setSelectedCameraDetail(null)
+      return undefined
+    }
+
+    let isMounted = true
+
+    fetch(`${API_BASE_URL}/api/cameras/${selectedCameraId}`, {
+      headers: authHeaders,
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Failed to load camera detail')
+        }
+        return response.json()
+      })
+      .then((data) => {
+        if (isMounted) setSelectedCameraDetail(data)
+      })
+      .catch(() => {
+        if (isMounted) setSelectedCameraDetail(null)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [authStatus, authHeaders, selectedCameraId])
 
   useEffect(() => {
     let isMounted = true
@@ -451,6 +488,10 @@ function App() {
 
     const source = resolveCameraSource(selectedCamera)
     const isLocalWebcam = source.startsWith('local://webcam')
+    const isNetworkStream =
+      source.startsWith('rtsp://') ||
+      source.startsWith('http://') ||
+      source.startsWith('https://')
 
     // Local camera should be consumed from edge relay to avoid webcam contention.
     if (isLocalWebcam) {
@@ -458,7 +499,7 @@ function App() {
       return undefined
     }
 
-    if (source.startsWith('http://') || source.startsWith('https://')) {
+    if (isNetworkStream) {
       setStreamStatus('relay')
     } else {
       setStreamStatus('unsupported')
@@ -602,7 +643,7 @@ function App() {
   const canManageCameras = user?.role === 'Admin_IT'
   const pageMeta = PAGE_META[activeNav] || PAGE_META.dashboard
   const resolvedCameraSource = resolveCameraSource(selectedCamera)
-  const liveSource = resolvedCameraSource.startsWith('local://webcam') ? EDGE_MJPEG_URL : resolvedCameraSource
+  const liveSource = streamStatus === 'relay' ? EDGE_MJPEG_URL : resolvedCameraSource
   const liveIsRelay =
     streamStatus === 'relay' &&
     (liveSource.startsWith('http://') || liveSource.startsWith('https://'))
