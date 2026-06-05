@@ -253,6 +253,21 @@
   grid-template-columns: 1fr 1fr 1.2fr 0.6fr 0.7fr;
 }
 
+.table-row.cameras {
+  grid-template-columns: 1.4fr 1fr 0.7fr 0.8fr auto;
+}
+
+.table-row.head.cameras {
+  align-items: center;
+}
+
+.camera-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
 .violation-status-cell {
   display: flex;
   flex-direction: column;
@@ -593,6 +608,11 @@
   color: var(--text);
 }
 
+.btn.danger-action {
+  border-color: rgba(255, 107, 107, 0.4);
+  color: #ffc5c5;
+}
+
 .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -683,6 +703,19 @@
   margin: 0.4rem 0 0.6rem;
   font-family: var(--font-display);
   font-size: 2rem;
+}
+
+.auth-hint-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.auth-hint-card {
+  padding: 0.85rem 0.9rem;
+  border-radius: 14px;
+  background: rgba(18, 50, 58, 0.55);
+  border: 1px solid rgba(31, 63, 70, 0.7);
 }
 
 .auth-form {
