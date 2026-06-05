@@ -231,6 +231,8 @@ function App() {
   const [inspectionModal, setInspectionModal] = useState(null)
 
   const [streamStatus, setStreamStatus] = useState('idle')
+  const [selectedCameraDetail, setSelectedCameraDetail] = useState(null)
+  const [updatingViolationId, setUpdatingViolationId] = useState('')
 
   const cameraList = useMemo(
     () => (cameraLoadFailed || !cameras.length ? FALLBACK_CAMERAS : cameras),
@@ -240,8 +242,15 @@ function App() {
   const selectedCamera = useMemo(() => {
     if (!cameraList.length) return null
     const found = cameraList.find((camera) => String(camera.id) === selectedCameraId)
-    return found || cameraList[0]
-  }, [cameraList, selectedCameraId])
+    const baseCamera = found || cameraList[0]
+    if (!baseCamera) return null
+
+    if (selectedCameraDetail && String(selectedCameraDetail.id) === String(baseCamera.id)) {
+      return { ...baseCamera, ...selectedCameraDetail }
+    }
+
+    return baseCamera
+  }, [cameraList, selectedCameraId, selectedCameraDetail])
 
   const cameraMap = useMemo(() => {
     const map = new Map()
@@ -300,6 +309,35 @@ function App() {
       setSelectedCameraId(String(cameraList[0].id))
     }
   }, [selectedCameraId, cameraList])
+
+  useEffect(() => {
+    if (authStatus !== 'ready' || !selectedCameraId) {
+      setSelectedCameraDetail(null)
+      return undefined
+    }
+
+    let isMounted = true
+
+    fetch(`${API_BASE_URL}/api/cameras/${selectedCameraId}`, {
+      headers: authHeaders,
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Failed to load camera detail')
+        }
+        return response.json()
+      })
+      .then((data) => {
+        if (isMounted) setSelectedCameraDetail(data)
+      })
+      .catch(() => {
+        if (isMounted) setSelectedCameraDetail(null)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [authStatus, authHeaders, selectedCameraId])
 
   useEffect(() => {
     let isMounted = true
@@ -435,6 +473,43 @@ function App() {
     await Promise.all([violationsPromise, seriesPromise])
   }, [authHeaders, authStatus, eventStatusFilter, selectedCameraId])
 
+  const updateViolationStatus = useCallback(
+    async (violationId, nextStatus) => {
+      if (authStatus !== 'ready' || !violationId) return
+
+      setUpdatingViolationId(violationId)
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/violations/${violationId}/status`, {
+          method: 'PUT',
+          headers: {
+            ...authHeaders,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            status: nextStatus,
+            notes: nextStatus === 'Verified' ? 'Verified from dashboard' : 'Marked as false positive from dashboard',
+          }),
+        })
+
+        if (!response.ok) {
+          const message = await response.text()
+          throw new Error(message || 'Failed to update violation status')
+        }
+
+        await Promise.all([loadOverview(), loadDetailedData()])
+      } catch (error) {
+        setReportStatus({
+          type: 'error',
+          message: error.message || 'Failed to update violation status',
+        })
+      } finally {
+        setUpdatingViolationId('')
+      }
+    },
+    [authHeaders, authStatus, loadDetailedData, loadOverview],
+  )
+
   useEffect(() => {
     loadOverview()
   }, [loadOverview])
@@ -451,6 +526,10 @@ function App() {
 
     const source = resolveCameraSource(selectedCamera)
     const isLocalWebcam = source.startsWith('local://webcam')
+    const isNetworkStream =
+      source.startsWith('rtsp://') ||
+      source.startsWith('http://') ||
+      source.startsWith('https://')
 
     // Local camera should be consumed from edge relay to avoid webcam contention.
     if (isLocalWebcam) {
@@ -458,7 +537,7 @@ function App() {
       return undefined
     }
 
-    if (source.startsWith('http://') || source.startsWith('https://')) {
+    if (isNetworkStream) {
       setStreamStatus('relay')
     } else {
       setStreamStatus('unsupported')
@@ -602,7 +681,7 @@ function App() {
   const canManageCameras = user?.role === 'Admin_IT'
   const pageMeta = PAGE_META[activeNav] || PAGE_META.dashboard
   const resolvedCameraSource = resolveCameraSource(selectedCamera)
-  const liveSource = resolvedCameraSource.startsWith('local://webcam') ? EDGE_MJPEG_URL : resolvedCameraSource
+  const liveSource = streamStatus === 'relay' ? EDGE_MJPEG_URL : resolvedCameraSource
   const liveIsRelay =
     streamStatus === 'relay' &&
     (liveSource.startsWith('http://') || liveSource.startsWith('https://'))
@@ -959,6 +1038,7 @@ function App() {
                 ) : filteredViolations.length ? (
                   filteredViolations.map((violation) => {
                     const cameraName = cameraMap.get(String(violation.camera_id))?.name || 'Unknown'
+                    const isUpdating = updatingViolationId === String(violation.id)
                     return (
                       <div key={violation.id} className="table-row violations">
                         <div>
@@ -968,7 +1048,29 @@ function App() {
                         <span>{cameraName}</span>
                         <span>{formatMissingApd(violation.missing_apd)}</span>
                         <span>{formatPercent(violation.confidence_score * 100)}</span>
-                        <span className={getViolationTone(violation.status)}>{violation.status}</span>
+                        <div className="violation-status-cell">
+                          <span className={getViolationTone(violation.status)}>{violation.status}</span>
+                          {violation.status === 'Unverified' ? (
+                            <div className="violation-actions">
+                              <button
+                                type="button"
+                                className="btn ghost tiny"
+                                disabled={isUpdating}
+                                onClick={() => updateViolationStatus(violation.id, 'Verified')}
+                              >
+                                {isUpdating ? 'Saving...' : 'Verify'}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn ghost tiny muted-action"
+                                disabled={isUpdating}
+                                onClick={() => updateViolationStatus(violation.id, 'False_Positive')}
+                              >
+                                False Positive
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                     )
                   })

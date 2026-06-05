@@ -113,6 +113,28 @@ class EdgeAPIClient:
 
             return []
 
+    def get_camera_detail(self, camera_id: str):
+
+        try:
+
+            response = self.session.get(
+                f"{self.backend_url}/api/cameras/{camera_id}",
+                headers=self.get_headers(),
+                timeout=10
+            )
+
+            if response.status_code != 200:
+                logger.error(f"Failed fetch camera detail for {camera_id}")
+                return None
+
+            return response.json()
+
+        except Exception as e:
+
+            logger.error(f"Camera detail fetch error: {e}")
+
+            return None
+
     def send_violation(
         self,
         camera_id: str,
@@ -677,6 +699,10 @@ class EdgeDeviceApp:
             idx = int(choice)
 
             selected_camera = cameras[idx]
+
+            camera_detail = self.api_client.get_camera_detail(selected_camera["id"])
+            if camera_detail:
+                selected_camera = camera_detail
 
             self.camera_id = selected_camera["id"]
             self.selected_camera_source = self.resolve_video_source(selected_camera)

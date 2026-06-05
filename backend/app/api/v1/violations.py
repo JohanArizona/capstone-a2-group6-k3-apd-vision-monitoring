@@ -297,6 +297,8 @@ async def update_violation_status(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Violation not found"
         )
+
+    camera = db.query(Camera).filter(Camera.id == violation.camera_id).first()
     
     # Update status
     violation.status = status_update.status
@@ -306,14 +308,15 @@ async def update_violation_status(
     
     # Create notification untuk semua users
     if status_update.status == "Verified":
-        notification_message = f"✅ PELANGGARAN TERVERIFIKASI - Kamera: {camera.name} - Diverifikasi oleh: {current_user.username} - Catatan: {status_update.notes or 'N/A'}"
+        camera_name = camera.name if camera else str(violation.camera_id)
+        notification_message = f"✅ PELANGGARAN TERVERIFIKASI - Kamera: {camera_name} - Diverifikasi oleh: {current_user.username} - Catatan: {status_update.notes or 'N/A'}"
     else:
-        notification_message = f"⛔ BUKAN PELANGGARAN - Kamera: {camera.name} - Diverifikasi oleh: {current_user.username} - Catatan: {status_update.notes or 'N/A'}"
+        camera_name = camera.name if camera else str(violation.camera_id)
+        notification_message = f"⛔ BUKAN PELANGGARAN - Kamera: {camera_name} - Diverifikasi oleh: {current_user.username} - Catatan: {status_update.notes or 'N/A'}"
     
     create_notifications_for_all_users(db, violation.id, notification_message)
     
     # Send Telegram notification
-    camera = db.query(Camera).filter(Camera.id == violation.camera_id).first()
     if camera:
         await send_verification_notification(
             camera_name=camera.name,
