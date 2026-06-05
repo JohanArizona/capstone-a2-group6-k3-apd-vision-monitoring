@@ -299,6 +299,76 @@ function App() {
     }
   }, [detectionSeries])
 
+  // Group violations by day (last 7 days) for the Bar Chart
+  const dailyTrend = useMemo(() => {
+    const days = []
+    const dateCounts = {}
+    
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      const dateStr = d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric' })
+      const key = d.toISOString().slice(0, 10)
+      days.push({ key, label: dateStr, count: 0 })
+      dateCounts[key] = 0
+    }
+    
+    const source = violationsFull.length
+      ? violationsFull
+      : violationLoadFailed
+        ? FALLBACK_VIOLATIONS
+        : violations
+        
+    source.forEach(v => {
+      const matchCamera = !selectedCameraId || String(v.camera_id) === selectedCameraId
+      if (matchCamera && v.timestamp) {
+        const dateKey = v.timestamp.slice(0, 10)
+        if (dateCounts[dateKey] !== undefined) {
+          dateCounts[dateKey]++
+        }
+      }
+    })
+    
+    return days.map(day => ({
+      ...day,
+      count: dateCounts[day.key] || 0
+    }))
+  }, [violations, violationsFull, violationLoadFailed, selectedCameraId])
+
+  // Aggregate violation types for the Pie Chart
+  const violationDistribution = useMemo(() => {
+    let helm = 0
+    let rompi = 0
+    let boot = 0
+    
+    const source = violationsFull.length
+      ? violationsFull
+      : violationLoadFailed
+        ? FALLBACK_VIOLATIONS
+        : violations
+        
+    source.forEach(v => {
+      const matchCamera = !selectedCameraId || String(v.camera_id) === selectedCameraId
+      if (matchCamera && v.missing_apd && typeof v.missing_apd === 'object') {
+        Object.entries(v.missing_apd).forEach(([key, val]) => {
+          if (val === true || val === 'true') {
+            const k = key.toLowerCase()
+            if (k.includes('helmet') || k.includes('hardhat')) {
+              helm++
+            } else if (k.includes('vest')) {
+              rompi++
+            } else if (k.includes('boot')) {
+              boot++
+            }
+          }
+        })
+      }
+    })
+    
+    const total = helm + rompi + boot
+    return { helm, rompi, boot, total }
+  }, [violations, violationsFull, violationLoadFailed, selectedCameraId])
+
   const authHeaders = useMemo(
     () => ({ Authorization: `Bearer ${token}` }),
     [token],
@@ -1118,6 +1188,209 @@ function App() {
                 <p className="stat-detail">Need review by operator</p>
               </div>
             </section>
+
+            {/* Visualisasi Data: Bar Chart & Pie/Donut Chart */}
+            <div className="analytics-charts-grid" data-animate style={{ '--delay': '0.04s' }}>
+              {/* Bar Chart: Tren Pelanggaran Harian */}
+              <div className="chart-panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>Tren Pelanggaran Harian</h2>
+                    <p className="muted">Jumlah kejadian pelanggaran terdeteksi 7 hari terakhir.</p>
+                  </div>
+                </div>
+                <div className="bar-chart-wrapper">
+                  {(() => {
+                    const maxCount = Math.max(...dailyTrend.map(d => d.count), 5)
+                    return (
+                      <svg width="100%" height="220" viewBox="0 0 540 220" preserveAspectRatio="xMidYMid meet">
+                        <defs>
+                          <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="var(--accent-strong)" stopOpacity="1" />
+                            <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.25" />
+                          </linearGradient>
+                        </defs>
+                        
+                        {/* Horizontal Grid lines */}
+                        {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => {
+                          const yPos = 170 - ratio * 140
+                          const gridVal = Math.round(ratio * maxCount)
+                          return (
+                            <g key={index}>
+                              <line x1="40" y1={yPos} x2="520" y2={yPos} className="grid-line" />
+                              <text x="15" y={yPos + 4} className="chart-text" textAnchor="middle">{gridVal}</text>
+                            </g>
+                          )
+                        })}
+                        
+                        {/* Bars */}
+                        {dailyTrend.map((d, index) => {
+                          const barWidth = 40
+                          const xPos = index * 66 + 55
+                          const barHeight = (d.count / maxCount) * 140
+                          const yPos = 170 - barHeight
+                          return (
+                            <g key={d.key}>
+                              <rect
+                                x={xPos}
+                                y={yPos}
+                                width={barWidth}
+                                height={barHeight}
+                                fill="url(#barGradient)"
+                                rx="6"
+                                ry="6"
+                                className="bar-rect"
+                              >
+                                <title>{`${d.label}: ${d.count} Pelanggaran`}</title>
+                              </rect>
+                              {d.count > 0 && (
+                                <text
+                                  x={xPos + barWidth / 2}
+                                  y={yPos - 6}
+                                  className="chart-value-text"
+                                  textAnchor="middle"
+                                >
+                                  {d.count}
+                                </text>
+                              )}
+                              <text
+                                x={xPos + barWidth / 2}
+                                y="192"
+                                className="chart-text"
+                                textAnchor="middle"
+                              >
+                                {d.label}
+                              </text>
+                            </g>
+                          )
+                        })}
+                        
+                        {/* X-axis Line */}
+                        <line x1="40" y1="170" x2="520" y2="170" className="axis-line" />
+                      </svg>
+                    )
+                  })()}
+                </div>
+              </div>
+
+              {/* Pie/Donut Chart: Distribusi Pelanggaran */}
+              <div className="chart-panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>Distribusi APD</h2>
+                    <p className="muted">Proporsi jenis APD yang sering dilanggar pekerja.</p>
+                  </div>
+                </div>
+                <div className="pie-chart-wrapper">
+                  {(() => {
+                    const { helm, rompi, boot, total } = violationDistribution
+                    const radius = 55
+                    const circumference = 2 * Math.PI * radius
+                    
+                    const helmPct = total ? (helm / total) : 0
+                    const rompiPct = total ? (rompi / total) : 0
+                    const bootPct = total ? (boot / total) : 0
+                    
+                    const helmOffset = 0
+                    const rompiOffset = helmPct * circumference
+                    const bootOffset = (helmPct + rompiPct) * circumference
+                    
+                    const formatPercentageText = (count) => {
+                      if (!total) return '0%'
+                      return `${((count / total) * 100).toFixed(0)}%`
+                    }
+                    
+                    return (
+                      <div className="pie-chart-container">
+                        <div className="pie-svg-container">
+                          <svg width="140" height="140" viewBox="0 0 140 140">
+                            {/* Background Circle */}
+                            <circle cx="70" cy="70" r={radius} fill="transparent" stroke="rgba(31, 63, 70, 0.4)" strokeWidth="12" />
+                            {total > 0 ? (
+                              <>
+                                {/* Helm Segment */}
+                                <circle
+                                  cx="70"
+                                  cy="70"
+                                  r={radius}
+                                  fill="transparent"
+                                  stroke="var(--accent)"
+                                  strokeWidth="12"
+                                  strokeDasharray={`${helmPct * circumference} ${circumference}`}
+                                  strokeDashoffset={-helmOffset}
+                                  transform="rotate(-90 70 70)"
+                                />
+                                {/* Rompi Segment */}
+                                <circle
+                                  cx="70"
+                                  cy="70"
+                                  r={radius}
+                                  fill="transparent"
+                                  stroke="var(--accent-warm)"
+                                  strokeWidth="12"
+                                  strokeDasharray={`${rompiPct * circumference} ${circumference}`}
+                                  strokeDashoffset={-rompiOffset}
+                                  transform="rotate(-90 70 70)"
+                                />
+                                {/* Boot Segment */}
+                                <circle
+                                  cx="70"
+                                  cy="70"
+                                  r={radius}
+                                  fill="transparent"
+                                  stroke="var(--danger)"
+                                  strokeWidth="12"
+                                  strokeDasharray={`${bootPct * circumference} ${circumference}`}
+                                  strokeDashoffset={-bootOffset}
+                                  transform="rotate(-90 70 70)"
+                                />
+                              </>
+                            ) : null}
+                          </svg>
+                          <div style={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <span style={{ fontSize: '1.6rem', fontWeight: 'bold', fontFamily: 'var(--font-display)', color: 'var(--text)' }}>
+                              {total}
+                            </span>
+                            <span style={{ fontSize: '0.62rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                              Kasus
+                            </span>
+                          </div>
+                        </div>
+                        <div className="chart-legend">
+                          <div className="legend-item">
+                            <div className="legend-label-group">
+                              <span className="legend-dot helm" />
+                              <span>Helm</span>
+                            </div>
+                            <span className="legend-value">
+                              {helm} <span className="legend-percent">({formatPercentageText(helm)})</span>
+                            </span>
+                          </div>
+                          <div className="legend-item">
+                            <div className="legend-label-group">
+                              <span className="legend-dot rompi" />
+                              <span>Rompi</span>
+                            </div>
+                            <span className="legend-value">
+                              {rompi} <span className="legend-percent">({formatPercentageText(rompi)})</span>
+                            </span>
+                          </div>
+                          <div className="legend-item">
+                            <div className="legend-label-group">
+                              <span className="legend-dot boot" />
+                              <span>Sepatu</span>
+                            </div>
+                            <span className="legend-value">
+                              {boot} <span className="legend-percent">({formatPercentageText(boot)})</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </div>
+              </div>
+            </div>
 
             <div className="new-data-table">
               <div className="new-table-row head-row">
